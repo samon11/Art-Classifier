@@ -9,8 +9,13 @@ Art Classifier in Keras
 
 import os
 import keras
+import numpy as np
 from keras.preprocessing.image import ImageDataGenerator
+from keras.preprocessing import image
 from keras import layers, models
+from random import randint
+import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
 
 
 
@@ -45,6 +50,26 @@ test_generator = test_datagen.flow_from_directory(
         target_size=(250,250),
         batch_size=5
         )
+
+
+
+def visualize_transforms(artist):
+    fnames = [os.path.join(train_dir + artist, fname) for fname in os.listdir(train_dir + artist)]
+    img_path = fnames[randint(0, len(fnames) - 1)]
+    img = image.load_img(img_path, target_size=(250, 250))
+
+    x = image.img_to_array(img)
+    x = x.reshape((1,) + x.shape)
+
+    i = 0
+    for batch in train_datagen.flow(x, batch_size=1):
+        plt.figure(i)
+        imgplot = plt.imshow(image.array_to_img(batch[0]))
+        i += 1
+        if i % 7 == 0:
+            break
+    plt.show()
+
 
 
 
@@ -93,9 +118,66 @@ def art_model(epochs=10):
       validation_steps=40,
       callbacks=callbacks)
 
+model = keras.models.load_model("deeep.h5")
 
 
-art_model(epochs=50)
+def view_activations(layer_index, artist, img_index=None):
+    fnames = [os.path.join(train_dir + artist, fname) for fname in os.listdir(train_dir + artist)]
+
+    rand_index = 0
+    if img_index is None:
+        rand_index = randint(0, len(fnames) - 1)
+    else:
+        rand_index = img_index
+
+    img_path = fnames[rand_index]
+
+    view_img = mpimg.imread(img_path)
+    print(img_path, rand_index)
+    plt.imshow(view_img)
+    img = image.load_img(img_path, target_size=(250, 250))
+
+
+    x = image.img_to_array(img)
+    x = x.reshape((1,) + x.shape)
+    x /= 255
+
+    layer_outputs = [layer.output for layer in model.layers]
+    activation_model = models.Model(inputs=model.input, outputs=layer_outputs)
+    activations = activation_model.predict(x)[layer_index]
+
+    # first_activations = activations[0]
+    # end_activations = activations[10]
+
+    images_per_row = 16
+
+    n_features = activations.shape[-1]
+    size = activations.shape[1]
+
+    n_cols = n_features // images_per_row
+    display_grid = np.zeros((size * n_cols, images_per_row * size))
+
+    for col in range(n_cols):
+        for row in range(images_per_row):
+            channel_image = activations[0, :, :, col * images_per_row + row]
+
+            channel_image -= channel_image.mean()
+            channel_image /= channel_image.std()
+            channel_image *= 64
+            channel_image += 128
+            channel_image = np.clip(channel_image, 0, 255).astype('uint8')
+            display_grid[col * size: (col + 1) * size,
+            row * size: (row + 1) * size] = channel_image
+
+    scale = 1. / size
+    plt.figure(figsize=(scale * display_grid.shape[1],
+                        scale * display_grid.shape[0]))
+    plt.title("Layer {}".format(layer_index))
+    plt.grid(False)
+    plt.imshow(display_grid, aspect='auto')
+
+
+#art_model(epochs=50)
     
     
     

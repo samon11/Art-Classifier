@@ -55,20 +55,32 @@ test_generator = test_datagen.flow_from_directory(
 
 def visualize_transforms(artist):
     fnames = [os.path.join(train_dir + artist, fname) for fname in os.listdir(train_dir + artist)]
-    img_path = fnames[randint(0, len(fnames) - 1)]
-    img = image.load_img(img_path, target_size=(250, 250))
+    img_names = os.listdir(train_dir + artist)
 
-    x = image.img_to_array(img)
-    x = x.reshape((1,) + x.shape)
+    for j, img_path in enumerate(fnames):
+        img_name = img_names[j]
+        img = image.load_img(img_path, target_size=(250, 250))
 
-    i = 0
-    for batch in train_datagen.flow(x, batch_size=1):
-        plt.figure(i)
-        imgplot = plt.imshow(image.array_to_img(batch[0]))
-        i += 1
-        if i % 7 == 0:
-            break
-    plt.show()
+        x = image.img_to_array(img)
+        x = x.reshape((1,) + x.shape)
+
+        i = 0
+        for batch in train_datagen.flow(x, batch_size=1):
+            fig = plt.figure(i)
+
+            # remove axis and scale content correctly
+            ax = plt.Axes(fig, [0., 0., 1., 1.])
+            ax.set_axis_off()
+            fig.add_axes(ax)
+
+            ax.imshow(image.array_to_img(batch[0]))
+            fig.savefig('transforms/'+ artist + " " + str(i) + " " + img_name, bbox_inches='tight')
+
+            i += 1
+            if i % 8 == 0:
+                break
+
+        #plt.show()
 
 
 
@@ -137,7 +149,6 @@ def view_activations(layer_index, artist, img_index=None):
     plt.imshow(view_img)
     img = image.load_img(img_path, target_size=(250, 250))
 
-
     x = image.img_to_array(img)
     x = x.reshape((1,) + x.shape)
     x /= 255
@@ -177,8 +188,6 @@ def view_activations(layer_index, artist, img_index=None):
     plt.imshow(display_grid, aspect='auto')
 
 
-#art_model(epochs=50)
-    
     
     
     

@@ -16,11 +16,18 @@ from keras import layers, models
 from random import randint
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
+from PIL import Image
+from albumentations import (
+    HorizontalFlip, IAAPerspective, ShiftScaleRotate, CLAHE, RandomRotate90,
+    Transpose, ShiftScaleRotate, Blur, OpticalDistortion, GridDistortion, HueSaturationValue,
+    IAAAdditiveGaussianNoise, GaussNoise, MotionBlur, MedianBlur, IAAPiecewiseAffine,
+    IAASharpen, IAAEmboss, RandomContrast, RandomBrightness, Flip, OneOf, Compose
+)
 
 
 
 # define image folder locations
-basedir = "/Users/user/Desktop/RRCC/ArtClassifier/"
+basedir = "/Users/user/Desktop/RRCC/Github Projects/ArtClassifier"
 
 train_dir = os.path.join(basedir, "images/train/")
 test_dir = os.path.join(basedir, "images/test/")
@@ -53,6 +60,65 @@ test_generator = test_datagen.flow_from_directory(
 
 
 
+def strong_aug(p=0.5):
+    return Compose([
+        RandomRotate90(),
+        Flip(),
+        Transpose(),
+        OneOf([
+            IAAAdditiveGaussianNoise(),
+            GaussNoise(),
+        ], p=p),
+        OneOf([
+            MotionBlur(p=p),
+        ], p=p),
+        ShiftScaleRotate(shift_limit=0.0625, scale_limit=0.2, rotate_limit=45, p=p),
+        OneOf([
+            OpticalDistortion(p=p),
+            GridDistortion(p=p),
+            IAAPiecewiseAffine(p=p),
+        ], p=p),
+        OneOf([
+            IAASharpen(),
+            IAAEmboss(),
+            RandomContrast(),
+            RandomBrightness(),
+        ], p=p),
+        HueSaturationValue(p=p),
+    ], p=p)
+
+
+def create_wack_transforms(artist):
+    img_names = os.listdir(train_dir + artist)
+    fnames = [os.path.join(train_dir + artist, fname) for fname in os.listdir(train_dir + artist)]
+
+    for j, img_path in enumerate(fnames):
+        img_name = img_names[j]
+        img = Image.open(img_path)
+
+        img = img.resize(
+            (300, 300), Image.ANTIALIAS
+        )  # ANTIALIAS resizes with best quality
+
+        img = np.array(img)
+
+        augmentor = strong_aug(p=0.9) 
+
+        # create 8 transforms from each image
+        for i in range(8):
+            augmented_img = augmentor(image=img, p=0.9)["image"]
+
+            fig = plt.figure(i)
+
+            # remove axis and scale content correctly
+            ax = plt.Axes(fig, [0., 0., 1., 1.])
+            ax.set_axis_off()
+            fig.add_axes(ax)
+
+            ax.imshow(augmented_img)
+            fig.savefig('transforms/'+ artist + " " + str(i) + " " + img_name, bbox_inches='tight')
+ 
+
 def visualize_transforms(artist):
     fnames = [os.path.join(train_dir + artist, fname) for fname in os.listdir(train_dir + artist)]
     img_names = os.listdir(train_dir + artist)
@@ -62,7 +128,6 @@ def visualize_transforms(artist):
         img = image.load_img(img_path, target_size=(250, 250))
 
         x = image.img_to_array(img)
-        x = x.reshape((1,) + x.shape)
 
         i = 0
         for batch in train_datagen.flow(x, batch_size=1):
@@ -81,8 +146,6 @@ def visualize_transforms(artist):
                 break
 
         #plt.show()
-
-
 
 
 def art_model(epochs=10):
@@ -186,47 +249,3 @@ def view_activations(layer_index, artist, img_index=None):
     plt.title("Layer {}".format(layer_index))
     plt.grid(False)
     plt.imshow(display_grid, aspect='auto')
-
-
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    

@@ -16,7 +16,7 @@ from keras import layers, models
 from random import randint
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
-from PIL import Image
+from PIL import Image, ImageChops
 from albumentations import (
     HorizontalFlip, IAAPerspective, ShiftScaleRotate, CLAHE, RandomRotate90,
     Transpose, ShiftScaleRotate, Blur, OpticalDistortion, GridDistortion, HueSaturationValue,
@@ -25,11 +25,10 @@ from albumentations import (
 )
 
 
-
 # define image folder locations
 basedir = "/Users/user/Desktop/RRCC/Github Projects/ArtClassifier"
 
-train_dir = os.path.join(basedir, "images/train/")
+train_dir = os.path.join(basedir, "transforms/")
 test_dir = os.path.join(basedir, "images/test/")
 
 # read in images
@@ -59,7 +58,6 @@ test_generator = test_datagen.flow_from_directory(
         )
 
 
-
 def strong_aug(p=0.5):
     return Compose([
         RandomRotate90(),
@@ -86,6 +84,25 @@ def strong_aug(p=0.5):
         ], p=p),
         HueSaturationValue(p=p),
     ], p=p)
+
+
+# this function found here: 
+# https://stackoverflow.com/questions/10615901/trim-whitespace-using-pil
+def crop_whitespace():
+    # remove '.DS_Store' from list
+    artists = sorted(os.listdir(train_dir))[1:]
+    for artist in artists:
+        img_paths = [os.path.join(train_dir + artist, fname) for fname in os.listdir(train_dir + artist)]
+
+        for img_path in img_paths:
+            im = Image.open(img_path)
+            bg = Image.new(im.mode, im.size, im.getpixel((0,0)))
+            diff = ImageChops.difference(im, bg)
+            diff = ImageChops.add(diff, diff, 2.0, -100)
+            bbox = diff.getbbox()
+            if bbox:
+                im = im.crop(bbox)
+                im.save(img_path)
 
 
 def create_wack_transforms(artist):
@@ -193,8 +210,6 @@ def art_model(epochs=10):
       validation_steps=40,
       callbacks=callbacks)
 
-model = keras.models.load_model("deeep.h5")
-
 
 def view_activations(layer_index, artist, img_index=None):
     fnames = [os.path.join(train_dir + artist, fname) for fname in os.listdir(train_dir + artist)]
@@ -249,3 +264,7 @@ def view_activations(layer_index, artist, img_index=None):
     plt.title("Layer {}".format(layer_index))
     plt.grid(False)
     plt.imshow(display_grid, aspect='auto')
+
+
+if __name__ == "__main__":
+    pass
